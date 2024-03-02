@@ -2,11 +2,14 @@
 
 namespace App\Controller\Blog;
 
+use App\Entity\Post\Comment;
 use App\Entity\Post\Post;
+use App\Form\CommentType;
 use App\Form\SearchType;
 use App\Model\SearchData;
 use App\Repository\Post\PostRepository;
 use Cocur\Slugify\Slugify;
+use Doctrine\ORM\EntityManagerInterface;
 use Knp\Component\Pager\PaginatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,12 +46,30 @@ class PostController extends AbstractController
         );
     }
 
-    #[Route('/article/{slug}', name: 'post.show', methods: ['GET'])]
-    public function show(Post $post): Response
+    #[Route('/article/{slug}', name: 'post.show', methods: ['GET', 'POST'])]
+    public function show(Request $request, Post $post, EntityManagerInterface $manager): Response
     {
+        $comment = new Comment();
+        if ($this->getUser()) {
+            $comment->setAuthor($this->getUser());
+            $comment->setPost($post);
+        }
+
+        $form = $this->createForm(CommentType::class, $comment);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $manager->persist($comment);
+            $manager->flush();
+
+            $this->addFlash('success', 'Votre commentaire a bien été enregistré. Il sera soumis à modération dans les plus brefs délais.');
+            return $this->redirectToRoute('post.show', ['slug' => $post->getSlug()]);
+        }
+
         return $this->render('pages/post/show.html.twig',
             [
-                'post'=>$post
+                'post' => $post,
+                'form' => $form
             ]
         );
     }

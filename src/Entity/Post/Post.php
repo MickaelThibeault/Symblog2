@@ -61,6 +61,9 @@ class Post
     #[JoinTable('user_post_like')]
     private Collection $likes;
 
+    #[ORM\OneToMany(targetEntity: Comment::class, mappedBy: 'post', orphanRemoval: true)]
+    private Collection $comments;
+
     public function __construct()
     {
         $this->updatedAt = new \DateTimeImmutable();
@@ -68,6 +71,7 @@ class Post
         $this->categories = new ArrayCollection();
         $this->tags = new ArrayCollection();
         $this->likes = new ArrayCollection();
+        $this->comments = new ArrayCollection();
     }
 
     public function __toString(): string
@@ -259,5 +263,35 @@ class Post
     public function isLikedByUser(User $user): bool
     {
         return $this->likes->contains($user);
+    }
+
+    /**
+     * @return Collection<int, Comment>
+     */
+    public function getComments(): Collection
+    {
+        return $this->comments;
+    }
+
+    public function addComment(Comment $comment): static
+    {
+        if (!$this->comments->contains($comment)) {
+            $this->comments->add($comment);
+            $comment->setPost($this);
+        }
+
+        return $this;
+    }
+
+    public function removeComment(Comment $comment): static
+    {
+        if ($this->comments->removeElement($comment)) {
+            // set the owning side to null (unless already changed)
+            if ($comment->getPost() === $this) {
+                $comment->setPost(null);
+            }
+        }
+
+        return $this;
     }
 }
